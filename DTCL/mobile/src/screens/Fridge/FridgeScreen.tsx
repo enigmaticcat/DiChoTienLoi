@@ -9,6 +9,7 @@ import {
     Modal,
     TextInput,
     Image,
+    ScrollView,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { fridgeApi, foodApi } from '../../services/api';
@@ -337,7 +338,12 @@ const FridgeScreen: React.FC = () => {
             </View>
 
             {/* Category Filter */}
-            <View style={styles.filterContainer}>
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.filterScrollContainer}
+                contentContainerStyle={styles.filterContainer}
+            >
                 <TouchableOpacity
                     style={[styles.filterChip, categoryFilter === 'all' && styles.filterChipActive]}
                     onPress={() => setCategoryFilter('all')}
@@ -355,7 +361,7 @@ const FridgeScreen: React.FC = () => {
                         </Text>
                     </TouchableOpacity>
                 ))}
-            </View>
+            </ScrollView>
 
             <FlatList
                 data={filteredItems}
@@ -760,11 +766,13 @@ const styles = StyleSheet.create({
         padding: 12,
         fontSize: 16,
     },
+    filterScrollContainer: {
+        backgroundColor: '#fff',
+    },
     filterContainer: {
         flexDirection: 'row',
         paddingHorizontal: 16,
         paddingBottom: 12,
-        backgroundColor: '#fff',
         gap: 8,
     },
     filterChip: {
