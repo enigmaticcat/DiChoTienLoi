@@ -15,9 +15,8 @@ import { fridgeApi, foodApi } from '../../services/api';
 
 interface FridgeItem {
     _id: string;
-    food: { _id: string; name: string; category?: { name: string }; image?: string };
+    food: { _id: string; name: string; category?: { name: string }; unit?: { name: string }; image?: string };
     quantity: number;
-    unit?: { name: string };
     expiryDate: string;
     note?: string;
     location?: string;
@@ -29,6 +28,16 @@ const LOCATIONS = [
     { id: 'vegetable', label: '🥬 Ngăn rau củ' },
     { id: 'door', label: '🚪 Cửa tủ' },
 ];
+
+interface Category {
+    _id: string;
+    name: string;
+}
+
+interface Unit {
+    _id: string;
+    name: string;
+}
 
 const FridgeScreen: React.FC = () => {
     const [items, setItems] = useState<FridgeItem[]>([]);
@@ -43,9 +52,16 @@ const FridgeScreen: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [expiryFilter, setExpiryFilter] = useState<'all' | 'expired' | 'soon' | 'fresh'>('all');
     const [location, setLocation] = useState('chiller');
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [categoryFilter, setCategoryFilter] = useState<string>('all');
+    const [selectedCategory, setSelectedCategory] = useState<string>('');
+    const [units, setUnits] = useState<Unit[]>([]);
+    const [selectedUnit, setSelectedUnit] = useState<string>('');
 
     useEffect(() => {
         loadItems();
+        loadCategories();
+        loadUnits();
     }, []);
 
     const loadItems = async () => {
@@ -54,6 +70,24 @@ const FridgeScreen: React.FC = () => {
             setItems(res.data.data || []);
         } catch (error) {
             console.error('Load fridge error:', error);
+        }
+    };
+
+    const loadCategories = async () => {
+        try {
+            const res = await foodApi.getCategories();
+            setCategories(res.data.data || []);
+        } catch (error) {
+            console.error('Load categories error:', error);
+        }
+    };
+
+    const loadUnits = async () => {
+        try {
+            const res = await foodApi.getUnits();
+            setUnits(res.data.data || []);
+        } catch (error) {
+            console.error('Load units error:', error);
         }
     };
 
@@ -71,6 +105,8 @@ const FridgeScreen: React.FC = () => {
         setNote('');
         setImageUrl('');
         setLocation('chiller');
+        setSelectedCategory('');
+        setSelectedUnit('');
         setModalVisible(true);
     };
 
@@ -86,6 +122,7 @@ const FridgeScreen: React.FC = () => {
         setNote(item.note || '');
         setImageUrl(item.food.image || '');
         setLocation(item.location || 'chiller');
+        setSelectedCategory(item.food.category?.name || '');
         setModalVisible(true);
     };
 
@@ -123,6 +160,8 @@ const FridgeScreen: React.FC = () => {
                     note: note.trim() || undefined,
                     image: imageUrl.trim() || undefined,
                     location: location,
+                    category: selectedCategory || undefined,
+                    unit: selectedUnit || undefined,
                 });
                 Toast.show({
                     type: 'success',
@@ -199,9 +238,12 @@ const FridgeScreen: React.FC = () => {
                     <View style={styles.textContainer}>
                         <Text style={styles.itemName}>{item.food.name}</Text>
                         <Text style={styles.itemCategory}>
-                            {item.food.category?.name || 'Khác'} • {item.quantity} {item.unit?.name || ''}
+                            {`${item.food.category?.name || 'Khác'} • ${item.quantity}${item.food.unit?.name ? ` ${item.food.unit.name}` : ''}`}
                         </Text>
-                        {item.note && <Text style={styles.itemNote}>{item.note}</Text>}
+                        <Text style={styles.itemLocation}>
+                            {LOCATIONS.find(l => l.id === item.location)?.label || '❄️ Ngăn mát'}
+                        </Text>
+                        {item.note ? <Text style={styles.itemNote}>{item.note}</Text> : null}
                     </View>
                 </View>
                 <View style={styles.rightSection}>
@@ -235,6 +277,13 @@ const FridgeScreen: React.FC = () => {
                 if (expiryFilter === 'fresh') return daysLeft > 3;
                 return true;
             });
+        }
+
+        // Category filter
+        if (categoryFilter !== 'all') {
+            filtered = filtered.filter(item =>
+                item.food.category?.name === categoryFilter
+            );
         }
 
         return filtered;
@@ -285,6 +334,27 @@ const FridgeScreen: React.FC = () => {
                 >
                     <Text style={[styles.filterText, expiryFilter === 'fresh' && styles.filterTextActive]}>Còn tươi</Text>
                 </TouchableOpacity>
+            </View>
+
+            {/* Category Filter */}
+            <View style={styles.filterContainer}>
+                <TouchableOpacity
+                    style={[styles.filterChip, categoryFilter === 'all' && styles.filterChipActive]}
+                    onPress={() => setCategoryFilter('all')}
+                >
+                    <Text style={[styles.filterText, categoryFilter === 'all' && styles.filterTextActive]}>Tất cả</Text>
+                </TouchableOpacity>
+                {categories.map((cat) => (
+                    <TouchableOpacity
+                        key={cat._id}
+                        style={[styles.filterChip, categoryFilter === cat.name && styles.filterChipActive]}
+                        onPress={() => setCategoryFilter(cat.name)}
+                    >
+                        <Text style={[styles.filterText, categoryFilter === cat.name && styles.filterTextActive]}>
+                            {cat.name}
+                        </Text>
+                    </TouchableOpacity>
+                ))}
             </View>
 
             <FlatList
@@ -352,6 +422,90 @@ const FridgeScreen: React.FC = () => {
                                 value={imageUrl}
                                 onChangeText={setImageUrl}
                             />
+                        )}
+
+                        {/* Category Picker */}
+                        {!editingItem && (
+                            <>
+                                <Text style={styles.labelText}>Loại thực phẩm:</Text>
+                                <View style={styles.locationPicker}>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.locationBtn,
+                                            !selectedCategory && styles.locationBtnActive,
+                                        ]}
+                                        onPress={() => setSelectedCategory('')}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.locationBtnText,
+                                                !selectedCategory && styles.locationBtnTextActive,
+                                            ]}
+                                        >
+                                            Không chọn
+                                        </Text>
+                                    </TouchableOpacity>
+                                    {categories.map((cat) => (
+                                        <TouchableOpacity
+                                            key={cat._id}
+                                            style={[
+                                                styles.locationBtn,
+                                                selectedCategory === cat.name && styles.locationBtnActive,
+                                            ]}
+                                            onPress={() => setSelectedCategory(cat.name)}
+                                        >
+                                            <Text
+                                                style={[
+                                                    styles.locationBtnText,
+                                                    selectedCategory === cat.name && styles.locationBtnTextActive,
+                                                ]}
+                                            >
+                                                {cat.name}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+
+                                {/* Unit Picker */}
+                                <Text style={styles.labelText}>Đơn vị:</Text>
+                                <View style={styles.locationPicker}>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.locationBtn,
+                                            !selectedUnit && styles.locationBtnActive,
+                                        ]}
+                                        onPress={() => setSelectedUnit('')}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.locationBtnText,
+                                                !selectedUnit && styles.locationBtnTextActive,
+                                            ]}
+                                        >
+                                            Không chọn
+                                        </Text>
+                                    </TouchableOpacity>
+                                    {units.map((u) => (
+                                        <TouchableOpacity
+                                            key={u._id}
+                                            style={[
+                                                styles.locationBtn,
+                                                selectedUnit === u.name && styles.locationBtnActive,
+                                            ]}
+                                            onPress={() => setSelectedUnit(u.name)}
+                                        >
+                                            <Text
+                                                style={[
+                                                    styles.locationBtnText,
+                                                    selectedUnit === u.name && styles.locationBtnTextActive,
+                                                ]}
+                                            >
+                                                {u.name}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </>
                         )}
 
                         {/* Location Picker */}
@@ -479,6 +633,11 @@ const styles = StyleSheet.create({
         color: '#b2bec3',
         marginTop: 4,
         fontStyle: 'italic',
+    },
+    itemLocation: {
+        fontSize: 11,
+        color: '#0984e3',
+        marginTop: 2,
     },
     rightSection: {
         alignItems: 'flex-end',

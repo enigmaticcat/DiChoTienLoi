@@ -106,7 +106,7 @@ export const foodApi = {
 export const fridgeApi = {
     getAll: () => api.get('/fridge/'),
     getOne: (id: string) => api.get(`/fridge/${id}`),
-    create: (data: { foodName: string; quantity?: number; useWithin?: number; note?: string; image?: string; location?: string }) =>
+    create: (data: { foodName: string; quantity?: number; useWithin?: number; note?: string; image?: string; location?: string; category?: string; unit?: string }) =>
         api.post('/fridge/', data),
     update: (data: { itemId: string; newQuantity?: number; newNote?: string; newUseWithin?: number; newLocation?: string }) =>
         api.put('/fridge/', data),
