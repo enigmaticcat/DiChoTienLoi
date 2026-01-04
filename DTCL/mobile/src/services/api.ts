@@ -62,6 +62,10 @@ export const authApi = {
         api.post('/user/verify-email', { code }),
     refreshToken: (refreshToken: string) =>
         api.post('/user/refresh-token', { refreshToken }),
+    forgotPassword: (email: string) =>
+        api.post('/user/forgot-password', { email }),
+    resetPassword: (data: { email: string; code: string; newPassword: string }) =>
+        api.post('/user/reset-password', data),
 };
 
 // User APIs
@@ -102,9 +106,9 @@ export const foodApi = {
 export const fridgeApi = {
     getAll: () => api.get('/fridge/'),
     getOne: (id: string) => api.get(`/fridge/${id}`),
-    create: (data: { foodName: string; quantity?: number; useWithin?: number; note?: string; image?: string }) =>
+    create: (data: { foodName: string; quantity?: number; useWithin?: number; note?: string; image?: string; location?: string }) =>
         api.post('/fridge/', data),
-    update: (data: { itemId: string; newQuantity?: number; newNote?: string; newUseWithin?: number }) =>
+    update: (data: { itemId: string; newQuantity?: number; newNote?: string; newUseWithin?: number; newLocation?: string }) =>
         api.put('/fridge/', data),
     delete: (itemId: string) => api.delete('/fridge/', { data: { itemId } }),
 };
@@ -116,9 +120,9 @@ export const shoppingApi = {
     deleteList: (listId: string) => api.delete('/shopping/list', { data: { listId } }),
 
     getTasks: (listId: string) => api.get(`/shopping/task/${listId}`),
-    createTask: (data: { listId: string; foodName: string; quantity?: number; assignedTo?: string }) =>
+    createTask: (data: { listId: string; foodName: string; quantity?: number; assignedTo?: string; price?: number }) =>
         api.post('/shopping/task', data),
-    updateTask: (data: { taskId: string; newFoodName?: string; newQuantity?: number; isCompleted?: boolean }) =>
+    updateTask: (data: { taskId: string; newFoodName?: string; newQuantity?: number; isCompleted?: boolean; newPrice?: number }) =>
         api.put('/shopping/task', data),
     deleteTask: (taskId: string) => api.delete('/shopping/task', { data: { taskId } }),
 };

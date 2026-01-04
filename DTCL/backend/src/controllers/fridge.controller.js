@@ -6,7 +6,7 @@ const Food = require('../models/Food');
 // @access  Private (requires group)
 exports.createFridgeItem = async (req, res) => {
     try {
-        const { foodName, quantity, useWithin, note } = req.body;
+        const { foodName, quantity, useWithin, note, location } = req.body;
 
         // Validate required fields
         if (!foodName) {
@@ -88,6 +88,7 @@ exports.createFridgeItem = async (req, res) => {
             useWithin: useWithin || null,
             expiryDate,
             note: note || '',
+            location: location || 'chiller',
             addedBy: req.user._id,
         });
 
@@ -119,7 +120,7 @@ exports.createFridgeItem = async (req, res) => {
 // @access  Private (requires group)
 exports.updateFridgeItem = async (req, res) => {
     try {
-        const { itemId, newQuantity, newNote, newUseWithin } = req.body;
+        const { itemId, newQuantity, newNote, newUseWithin, newLocation } = req.body;
 
         if (!itemId) {
             return res.status(400).json({
@@ -128,10 +129,10 @@ exports.updateFridgeItem = async (req, res) => {
             });
         }
 
-        if (newQuantity === undefined && newNote === undefined && newUseWithin === undefined) {
+        if (newQuantity === undefined && newNote === undefined && newUseWithin === undefined && newLocation === undefined) {
             return res.status(400).json({
                 code: '00204x',
-                message: 'Vui lòng cung cấp ít nhất một trong các trường sau, newQuantity, newNote, newUseWithin.',
+                message: 'Vui lòng cung cấp ít nhất một trong các trường sau, newQuantity, newNote, newUseWithin, newLocation.',
             });
         }
 
@@ -188,6 +189,10 @@ exports.updateFridgeItem = async (req, res) => {
             fridgeItem.useWithin = newUseWithin;
             fridgeItem.expiryDate = new Date();
             fridgeItem.expiryDate.setDate(fridgeItem.expiryDate.getDate() + parseInt(newUseWithin));
+        }
+
+        if (newLocation !== undefined) {
+            fridgeItem.location = newLocation;
         }
 
         await fridgeItem.save();

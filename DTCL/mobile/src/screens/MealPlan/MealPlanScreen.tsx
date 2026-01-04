@@ -34,6 +34,7 @@ const MealPlanScreen: React.FC = () => {
     const [modalVisible, setModalVisible] = useState(false);
     const [foodName, setFoodName] = useState('');
     const [mealType, setMealType] = useState<'sáng' | 'trưa' | 'tối'>('sáng');
+    const [editingMeal, setEditingMeal] = useState<MealPlan | null>(null);
 
     useEffect(() => {
         loadMeals();
@@ -55,7 +56,21 @@ const MealPlanScreen: React.FC = () => {
         setRefreshing(false);
     }, [selectedDate]);
 
-    const handleAdd = async () => {
+    const openAddModal = () => {
+        setEditingMeal(null);
+        setFoodName('');
+        setMealType('sáng');
+        setModalVisible(true);
+    };
+
+    const openEditModal = (meal: MealPlan) => {
+        setEditingMeal(meal);
+        setFoodName(meal.food.name);
+        setMealType(meal.mealType || meal.name);
+        setModalVisible(true);
+    };
+
+    const handleSave = async () => {
         if (!foodName.trim()) {
             Toast.show({
                 type: 'error',
@@ -66,24 +81,40 @@ const MealPlanScreen: React.FC = () => {
         }
 
         try {
-            await mealPlanApi.create({
-                foodName: foodName.trim(),
-                timestamp: selectedDate.toISOString(),
-                name: mealType,
-            });
+            if (editingMeal) {
+                // Update existing meal
+                await mealPlanApi.update({
+                    planId: editingMeal._id,
+                    newFoodName: foodName.trim(),
+                    newName: mealType,
+                });
+                Toast.show({
+                    type: 'success',
+                    text1: 'Thành công!',
+                    text2: 'Đã cập nhật kế hoạch bữa ăn',
+                });
+            } else {
+                // Create new meal
+                await mealPlanApi.create({
+                    foodName: foodName.trim(),
+                    timestamp: selectedDate.toISOString(),
+                    name: mealType,
+                });
+                Toast.show({
+                    type: 'success',
+                    text1: 'Thành công!',
+                    text2: 'Đã thêm kế hoạch bữa ăn',
+                });
+            }
             setModalVisible(false);
             setFoodName('');
+            setEditingMeal(null);
             loadMeals();
-            Toast.show({
-                type: 'success',
-                text1: 'Thành công!',
-                text2: 'Đã thêm kế hoạch bữa ăn',
-            });
         } catch (error: any) {
             Toast.show({
                 type: 'error',
                 text1: 'Lỗi',
-                text2: error.response?.data?.message || 'Không thể thêm',
+                text2: error.response?.data?.message || 'Không thể lưu',
             });
         }
     };
@@ -148,6 +179,7 @@ const MealPlanScreen: React.FC = () => {
         return (
             <TouchableOpacity
                 style={styles.mealCard}
+                onPress={() => openEditModal(item)}
                 onLongPress={() => handleDelete(item)}
             >
                 <View style={styles.mealBadge}>
@@ -156,6 +188,7 @@ const MealPlanScreen: React.FC = () => {
                 <View style={styles.mealInfo}>
                     <Text style={styles.mealFood}>{item.food.name}</Text>
                 </View>
+                <Text style={styles.editHint}>✏️</Text>
             </TouchableOpacity>
         );
     };
@@ -204,15 +237,17 @@ const MealPlanScreen: React.FC = () => {
             />
 
             {/* FAB */}
-            <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+            <TouchableOpacity style={styles.fab} onPress={openAddModal}>
                 <Text style={styles.fabText}>+</Text>
             </TouchableOpacity>
 
-            {/* Add Modal */}
+            {/* Add/Edit Modal */}
             <Modal visible={modalVisible} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Thêm món ăn</Text>
+                        <Text style={styles.modalTitle}>
+                            {editingMeal ? 'Sửa món ăn' : 'Thêm món ăn'}
+                        </Text>
 
                         <View style={styles.typeSelector}>
                             <MealTypeButton type="sáng" label="Sáng" />
@@ -234,8 +269,10 @@ const MealPlanScreen: React.FC = () => {
                             >
                                 <Text style={styles.cancelText}>Hủy</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.modalBtn, styles.addBtn]} onPress={handleAdd}>
-                                <Text style={styles.addBtnText}>Thêm</Text>
+                            <TouchableOpacity style={[styles.modalBtn, styles.addBtn]} onPress={handleSave}>
+                                <Text style={styles.addBtnText}>
+                                    {editingMeal ? 'Lưu' : 'Thêm'}
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -316,6 +353,10 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#2d3436',
         marginTop: 4,
+    },
+    editHint: {
+        fontSize: 18,
+        color: '#b2bec3',
     },
     empty: {
         alignItems: 'center',

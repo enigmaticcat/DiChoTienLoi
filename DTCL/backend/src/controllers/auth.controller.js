@@ -378,3 +378,107 @@ exports.verifyEmail = async (req, res) => {
         });
     }
 };
+
+// @desc    Forgot password - send reset code
+// @route   POST /api/user/forgot-password/
+// @access  Public
+exports.forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({
+                code: '00070',
+                message: 'Vui lòng cung cấp địa chỉ email.',
+            });
+        }
+
+        const user = await User.findOne({ email: email.toLowerCase() });
+        if (!user) {
+            return res.status(404).json({
+                code: '00071',
+                message: 'Không tìm thấy tài khoản với địa chỉ email này.',
+            });
+        }
+
+        // Generate reset code
+        const resetCode = generateVerificationCode();
+        user.resetPasswordCode = resetCode;
+        user.resetPasswordExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+        await user.save({ validateBeforeSave: false });
+
+        // Send reset email
+        sendVerificationEmail(user.email, resetCode, user.name)
+            .then(result => {
+                if (result.success) {
+                    console.log(`📧 Password reset email sent to ${user.email}`);
+                }
+            })
+            .catch(err => console.error('Email error:', err));
+
+        res.status(200).json({
+            code: '00072',
+            message: 'Mã đặt lại mật khẩu đã được gửi đến email của bạn.',
+        });
+    } catch (error) {
+        console.error('Forgot password error:', error);
+        res.status(500).json({
+            code: '00008',
+            message: 'Đã xảy ra lỗi máy chủ nội bộ, vui lòng thử lại.',
+        });
+    }
+};
+
+// @desc    Reset password with code
+// @route   POST /api/user/reset-password/
+// @access  Public
+exports.resetPassword = async (req, res) => {
+    try {
+        const { email, code, newPassword } = req.body;
+
+        if (!email || !code || !newPassword) {
+            return res.status(400).json({
+                code: '00073',
+                message: 'Vui lòng cung cấp email, mã xác nhận và mật khẩu mới.',
+            });
+        }
+
+        // Validate password
+        if (newPassword.length < 6 || newPassword.length > 20) {
+            return res.status(400).json({
+                code: '00074',
+                message: 'Mật khẩu phải dài từ 6 đến 20 ký tự.',
+            });
+        }
+
+        const user = await User.findOne({
+            email: email.toLowerCase(),
+            resetPasswordCode: code,
+            resetPasswordExpiry: { $gt: Date.now() },
+        });
+
+        if (!user) {
+            return res.status(400).json({
+                code: '00075',
+                message: 'Mã không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.',
+            });
+        }
+
+        // Update password
+        user.password = newPassword;
+        user.resetPasswordCode = undefined;
+        user.resetPasswordExpiry = undefined;
+        await user.save();
+
+        res.status(200).json({
+            code: '00076',
+            message: 'Mật khẩu đã được đặt lại thành công. Vui lòng đăng nhập.',
+        });
+    } catch (error) {
+        console.error('Reset password error:', error);
+        res.status(500).json({
+            code: '00008',
+            message: 'Đã xảy ra lỗi máy chủ nội bộ, vui lòng thử lại.',
+        });
+    }
+};

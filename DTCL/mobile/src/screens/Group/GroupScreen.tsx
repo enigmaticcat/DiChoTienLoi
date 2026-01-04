@@ -9,6 +9,7 @@ import {
     TextInput,
     Modal,
     Alert,
+    Platform,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { groupApi } from '../../services/api';
@@ -149,36 +150,45 @@ const GroupScreen: React.FC<Props> = ({ navigation }) => {
         }
     };
 
-    const handleDeleteGroup = () => {
-        Alert.alert(
-            'Xóa nhóm',
-            'Bạn có chắc muốn xóa nhóm? Tất cả thành viên sẽ bị loại khỏi nhóm.',
-            [
-                { text: 'Hủy', style: 'cancel' },
-                {
-                    text: 'Xóa',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await groupApi.deleteGroup();
-                            await refreshUser();
-                            setHasGroup(false);
-                            Toast.show({
-                                type: 'success',
-                                text1: 'Đã xóa nhóm!',
-                                text2: 'Nhóm đã được xóa',
-                            });
-                        } catch (error: any) {
-                            Toast.show({
-                                type: 'error',
-                                text1: 'Lỗi',
-                                text2: error.response?.data?.message || 'Không thể xóa nhóm',
-                            });
-                        }
-                    },
-                },
-            ]
-        );
+    const handleDeleteGroup = async () => {
+        // Use Platform to detect environment
+        const isWeb = Platform.OS === 'web';
+
+        if (isWeb) {
+            // Web: use window.confirm
+            const confirmed = window.confirm('Bạn có chắc muốn xóa nhóm? Tất cả thành viên sẽ bị loại khỏi nhóm.');
+            if (!confirmed) return;
+            await performDeleteGroup();
+        } else {
+            // Native: use Alert.alert
+            Alert.alert(
+                'Xóa nhóm',
+                'Bạn có chắc muốn xóa nhóm? Tất cả thành viên sẽ bị loại khỏi nhóm.',
+                [
+                    { text: 'Hủy', style: 'cancel' },
+                    { text: 'Xóa', style: 'destructive', onPress: performDeleteGroup },
+                ]
+            );
+        }
+    };
+
+    const performDeleteGroup = async () => {
+        try {
+            await groupApi.deleteGroup();
+            await refreshUser();
+            setHasGroup(false);
+            Toast.show({
+                type: 'success',
+                text1: 'Đã xóa nhóm!',
+                text2: 'Nhóm đã được xóa',
+            });
+        } catch (error: any) {
+            Toast.show({
+                type: 'error',
+                text1: 'Lỗi',
+                text2: error.response?.data?.message || 'Không thể xóa nhóm',
+            });
+        }
     };
 
     const renderMember = ({ item }: { item: Member }) => (

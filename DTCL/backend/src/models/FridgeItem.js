@@ -28,6 +28,11 @@ const fridgeItemSchema = new mongoose.Schema(
             type: String,
             trim: true,
         },
+        location: {
+            type: String,
+            enum: ['freezer', 'chiller', 'vegetable', 'door'],
+            default: 'chiller',
+        },
         addedBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',

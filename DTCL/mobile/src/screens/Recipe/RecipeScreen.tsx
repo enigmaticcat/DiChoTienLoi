@@ -30,6 +30,8 @@ const RecipeScreen: React.FC = () => {
     const [foodName, setFoodName] = useState('');
     const [recipeName, setRecipeName] = useState('');
     const [description, setDescription] = useState('');
+    const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         loadRecipes();
@@ -50,7 +52,24 @@ const RecipeScreen: React.FC = () => {
         setRefreshing(false);
     }, []);
 
-    const handleAddRecipe = async () => {
+    const openAddModal = () => {
+        setEditingRecipe(null);
+        setFoodName('');
+        setRecipeName('');
+        setDescription('');
+        setModalVisible(true);
+    };
+
+    const openEditModal = (recipe: Recipe) => {
+        setEditingRecipe(recipe);
+        setFoodName(recipe.food.name);
+        setRecipeName(recipe.name);
+        setDescription(recipe.description || '');
+        setDetailModalVisible(false);
+        setModalVisible(true);
+    };
+
+    const handleSaveRecipe = async () => {
         if (!foodName.trim() || !recipeName.trim()) {
             Toast.show({
                 type: 'error',
@@ -61,26 +80,40 @@ const RecipeScreen: React.FC = () => {
         }
 
         try {
-            await recipeApi.create({
-                foodName: foodName.trim(),
-                name: recipeName.trim(),
-                description: description.trim() || undefined,
-            });
+            if (editingRecipe) {
+                await recipeApi.update({
+                    recipeId: editingRecipe._id,
+                    newName: recipeName.trim(),
+                    newDescription: description.trim() || undefined,
+                });
+                Toast.show({
+                    type: 'success',
+                    text1: 'Thành công!',
+                    text2: 'Đã cập nhật công thức',
+                });
+            } else {
+                await recipeApi.create({
+                    foodName: foodName.trim(),
+                    name: recipeName.trim(),
+                    description: description.trim() || undefined,
+                });
+                Toast.show({
+                    type: 'success',
+                    text1: 'Thành công!',
+                    text2: 'Đã thêm công thức',
+                });
+            }
             setModalVisible(false);
             setFoodName('');
             setRecipeName('');
             setDescription('');
+            setEditingRecipe(null);
             loadRecipes();
-            Toast.show({
-                type: 'success',
-                text1: 'Thành công!',
-                text2: 'Đã thêm công thức',
-            });
         } catch (error: any) {
             Toast.show({
                 type: 'error',
                 text1: 'Lỗi',
-                text2: error.response?.data?.message || 'Không thể thêm',
+                text2: error.response?.data?.message || 'Không thể lưu',
             });
         }
     };
@@ -129,15 +162,35 @@ const RecipeScreen: React.FC = () => {
         </TouchableOpacity>
     );
 
+    const getFilteredRecipes = () => {
+        if (!searchQuery.trim()) return recipes;
+        return recipes.filter(recipe =>
+            recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            recipe.food?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    };
+
+    const filteredRecipes = getFilteredRecipes();
+
     return (
         <View style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.title}>Công thức nấu ăn</Text>
-                <Text style={styles.subtitle}>{recipes.length} công thức</Text>
+                <Text style={styles.subtitle}>{filteredRecipes.length} / {recipes.length} công thức</Text>
+            </View>
+
+            {/* Search Bar */}
+            <View style={styles.searchContainer}>
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder="🔍 Tìm công thức hoặc món ăn..."
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                />
             </View>
 
             <FlatList
-                data={recipes}
+                data={filteredRecipes}
                 keyExtractor={(item) => item._id}
                 renderItem={renderRecipe}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -151,21 +204,24 @@ const RecipeScreen: React.FC = () => {
                 }
             />
 
-            <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+            <TouchableOpacity style={styles.fab} onPress={openAddModal}>
                 <Text style={styles.fabText}>+</Text>
             </TouchableOpacity>
 
-            {/* Add Recipe Modal */}
+            {/* Add/Edit Recipe Modal */}
             <Modal visible={modalVisible} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Thêm công thức</Text>
+                        <Text style={styles.modalTitle}>
+                            {editingRecipe ? 'Sửa công thức' : 'Thêm công thức'}
+                        </Text>
 
                         <TextInput
-                            style={styles.input}
+                            style={[styles.input, editingRecipe && styles.inputDisabled]}
                             placeholder="Tên món ăn *"
                             value={foodName}
                             onChangeText={setFoodName}
+                            editable={!editingRecipe}
                         />
 
                         <TextInput
@@ -191,8 +247,10 @@ const RecipeScreen: React.FC = () => {
                             >
                                 <Text style={styles.cancelText}>Hủy</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.modalBtn, styles.addBtn]} onPress={handleAddRecipe}>
-                                <Text style={styles.addBtnText}>Thêm</Text>
+                            <TouchableOpacity style={[styles.modalBtn, styles.addBtn]} onPress={handleSaveRecipe}>
+                                <Text style={styles.addBtnText}>
+                                    {editingRecipe ? 'Lưu' : 'Thêm'}
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -210,12 +268,20 @@ const RecipeScreen: React.FC = () => {
                                 <Text style={styles.detailDesc}>{selectedRecipe.description}</Text>
                             )}
                         </ScrollView>
-                        <TouchableOpacity
-                            style={styles.closeBtn}
-                            onPress={() => setDetailModalVisible(false)}
-                        >
-                            <Text style={styles.closeBtnText}>Đóng</Text>
-                        </TouchableOpacity>
+                        <View style={styles.detailButtonsRow}>
+                            <TouchableOpacity
+                                style={styles.editDetailBtn}
+                                onPress={() => selectedRecipe && openEditModal(selectedRecipe)}
+                            >
+                                <Text style={styles.editDetailBtnText}>✏️ Sửa</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.closeBtn}
+                                onPress={() => setDetailModalVisible(false)}
+                            >
+                                <Text style={styles.closeBtnText}>Đóng</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
             </Modal>
@@ -412,6 +478,37 @@ const styles = StyleSheet.create({
     closeBtnText: {
         color: '#636e72',
         fontWeight: '600',
+    },
+    inputDisabled: {
+        backgroundColor: '#e0e0e0',
+        color: '#888',
+    },
+    detailButtonsRow: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 16,
+    },
+    editDetailBtn: {
+        flex: 1,
+        backgroundColor: '#0984e3',
+        borderRadius: 12,
+        padding: 16,
+        alignItems: 'center',
+    },
+    editDetailBtnText: {
+        color: '#fff',
+        fontWeight: '600',
+    },
+    searchContainer: {
+        backgroundColor: '#fff',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+    },
+    searchInput: {
+        backgroundColor: '#f1f3f4',
+        borderRadius: 12,
+        padding: 12,
+        fontSize: 16,
     },
 });
 

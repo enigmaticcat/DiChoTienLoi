@@ -26,6 +26,7 @@ interface ShoppingTask {
     unit?: { name: string };
     isCompleted: boolean;
     assignedTo?: { _id: string; name: string };
+    price?: number;
 }
 
 interface ShoppingList {
@@ -44,6 +45,8 @@ const ShoppingScreen: React.FC = () => {
     const [quantity, setQuantity] = useState('1');
     const [members, setMembers] = useState<Member[]>([]);
     const [selectedMember, setSelectedMember] = useState<string>('');
+    const [editingTask, setEditingTask] = useState<ShoppingTask | null>(null);
+    const [price, setPrice] = useState('');
 
     useEffect(() => {
         loadLists();
@@ -110,7 +113,25 @@ const ShoppingScreen: React.FC = () => {
         loadTasks(list._id);
     };
 
-    const handleAddTask = async () => {
+    const openAddModal = () => {
+        setEditingTask(null);
+        setFoodName('');
+        setQuantity('1');
+        setSelectedMember('');
+        setPrice('');
+        setModalVisible(true);
+    };
+
+    const openEditModal = (task: ShoppingTask) => {
+        setEditingTask(task);
+        setFoodName(task.food.name);
+        setQuantity(String(task.quantity));
+        setSelectedMember(task.assignedTo?._id || '');
+        setPrice(task.price ? String(task.price) : '');
+        setModalVisible(true);
+    };
+
+    const handleSaveTask = async () => {
         if (!selectedList || !foodName.trim()) {
             Toast.show({
                 type: 'error',
@@ -121,27 +142,42 @@ const ShoppingScreen: React.FC = () => {
         }
 
         try {
-            await shoppingApi.createTask({
-                listId: selectedList._id,
-                foodName: foodName.trim(),
-                quantity: parseInt(quantity) || 1,
-                assignedTo: selectedMember || undefined,
-            });
+            if (editingTask) {
+                await shoppingApi.updateTask({
+                    taskId: editingTask._id,
+                    newQuantity: parseInt(quantity) || 1,
+                    newPrice: price ? parseFloat(price) : undefined,
+                });
+                Toast.show({
+                    type: 'success',
+                    text1: 'Thành công!',
+                    text2: 'Đã cập nhật món cần mua',
+                });
+            } else {
+                await shoppingApi.createTask({
+                    listId: selectedList._id,
+                    foodName: foodName.trim(),
+                    quantity: parseInt(quantity) || 1,
+                    assignedTo: selectedMember || undefined,
+                    price: price ? parseFloat(price) : undefined,
+                });
+                Toast.show({
+                    type: 'success',
+                    text1: 'Thành công!',
+                    text2: 'Đã thêm món cần mua',
+                });
+            }
             setModalVisible(false);
             setFoodName('');
             setQuantity('1');
             setSelectedMember('');
+            setEditingTask(null);
             loadTasks(selectedList._id);
-            Toast.show({
-                type: 'success',
-                text1: 'Thành công!',
-                text2: 'Đã thêm món cần mua',
-            });
         } catch (error: any) {
             Toast.show({
                 type: 'error',
                 text1: 'Lỗi',
-                text2: error.response?.data?.message || 'Không thể thêm',
+                text2: error.response?.data?.message || 'Không thể lưu',
             });
         }
     };
@@ -178,6 +214,7 @@ const ShoppingScreen: React.FC = () => {
         <TouchableOpacity
             style={[styles.taskCard, item.isCompleted && styles.taskCompleted]}
             onPress={() => handleToggleTask(item)}
+            onLongPress={() => openEditModal(item)}
         >
             <View style={[styles.checkbox, item.isCompleted && styles.checkboxChecked]}>
                 {item.isCompleted && <Text style={styles.checkmark}>✓</Text>}
@@ -197,6 +234,7 @@ const ShoppingScreen: React.FC = () => {
                     </View>
                 )}
             </View>
+            <Text style={styles.editHint}>✏️</Text>
         </TouchableOpacity>
     );
 
@@ -247,7 +285,7 @@ const ShoppingScreen: React.FC = () => {
 
             {/* FAB */}
             {selectedList && (
-                <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+                <TouchableOpacity style={styles.fab} onPress={openAddModal}>
                     <Text style={styles.fabText}>+</Text>
                 </TouchableOpacity>
             )}
@@ -271,6 +309,14 @@ const ShoppingScreen: React.FC = () => {
                             value={quantity}
                             onChangeText={setQuantity}
                             keyboardType="number-pad"
+                        />
+
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Giá tiền (VNĐ)"
+                            value={price}
+                            onChangeText={setPrice}
+                            keyboardType="numeric"
                         />
 
                         {/* Member Assignment */}
@@ -304,8 +350,10 @@ const ShoppingScreen: React.FC = () => {
                             >
                                 <Text style={styles.cancelText}>Hủy</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.modalBtn, styles.addBtn]} onPress={handleAddTask}>
-                                <Text style={styles.addBtnText}>Thêm</Text>
+                            <TouchableOpacity style={[styles.modalBtn, styles.addBtn]} onPress={handleSaveTask}>
+                                <Text style={styles.addBtnText}>
+                                    {editingTask ? 'Lưu' : 'Thêm'}
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -554,6 +602,10 @@ const styles = StyleSheet.create({
     addBtnText: {
         color: '#fff',
         fontWeight: '600',
+    },
+    editHint: {
+        fontSize: 18,
+        color: '#b2bec3',
     },
 });
 

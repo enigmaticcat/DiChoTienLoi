@@ -132,7 +132,7 @@ exports.deleteShoppingList = async (req, res) => {
 // @access  Private (Group Admin)
 exports.createTask = async (req, res) => {
     try {
-        const { listId, foodName, quantity, assignedTo } = req.body;
+        const { listId, foodName, quantity, assignedTo, price } = req.body;
 
         if (!listId || !foodName) {
             return res.status(400).json({
@@ -186,6 +186,7 @@ exports.createTask = async (req, res) => {
             food: food._id,
             quantity: quantity || 1,
             assignedTo: assignedTo || null,
+            price: price || 0,
         });
 
         const populatedTask = await ShoppingTask.findById(task._id)
@@ -248,7 +249,7 @@ exports.getTasks = async (req, res) => {
 // @access  Private (Group Admin)
 exports.updateTask = async (req, res) => {
     try {
-        const { taskId, newFoodName, newQuantity, isCompleted } = req.body;
+        const { taskId, newFoodName, newQuantity, isCompleted, newPrice } = req.body;
 
         if (!taskId) {
             return res.status(400).json({
@@ -303,6 +304,10 @@ exports.updateTask = async (req, res) => {
             } else {
                 task.completedAt = null;
             }
+        }
+
+        if (newPrice !== undefined) {
+            task.price = newPrice;
         }
 
         await task.save();

@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import LoginScreen from '../screens/Auth/LoginScreen';
 import RegisterScreen from '../screens/Auth/RegisterScreen';
 import OTPVerifyScreen from '../screens/Auth/OTPVerifyScreen';
+import ForgotPasswordScreen from '../screens/Auth/ForgotPasswordScreen';
 
 // Main Screens
 import HomeScreen from '../screens/Home/HomeScreen';
@@ -36,6 +37,7 @@ const AuthStack = () => (
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="OTPVerify" component={OTPVerifyScreen} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
     </Stack.Navigator>
 );
 

@@ -110,6 +110,13 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                             Chưa có tài khoản? <Text style={styles.linkBold}>Đăng ký ngay</Text>
                         </Text>
                     </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.linkButton}
+                        onPress={() => navigation.navigate('ForgotPassword')}
+                    >
+                        <Text style={styles.linkText}>Quên mật khẩu?</Text>
+                    </TouchableOpacity>
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>

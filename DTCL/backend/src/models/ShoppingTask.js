@@ -25,6 +25,11 @@ const shoppingTaskSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
+        price: {
+            type: Number,
+            min: [0, 'Price cannot be negative'],
+            default: 0,
+        },
         completedAt: {
             type: Date,
         },

@@ -78,6 +78,12 @@ const userSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Group',
         },
+        resetPasswordCode: {
+            type: String,
+        },
+        resetPasswordExpiry: {
+            type: Date,
+        },
     },
     {
         timestamps: true,
