@@ -9,7 +9,7 @@ const Food = require('../models/Food');
 // @access  Private (requires group)
 exports.createShoppingList = async (req, res) => {
     try {
-        const { date } = req.body;
+        const { date, name } = req.body;
 
         if (!req.user.group) {
             return res.status(400).json({
@@ -22,22 +22,26 @@ exports.createShoppingList = async (req, res) => {
         const listDate = date ? new Date(date) : new Date();
         listDate.setHours(0, 0, 0, 0);
 
-        // Check if list already exists for this date
-        const existingList = await ShoppingList.findOne({
-            group: req.user.group,
-            date: listDate,
-        });
-
-        if (existingList) {
-            return res.status(200).json({
-                code: '00098',
-                message: 'Danh sách đã tồn tại.',
-                data: existingList,
+        // Check if list already exists for this date (only if no custom name)
+        if (!name) {
+            const existingList = await ShoppingList.findOne({
+                group: req.user.group,
+                date: listDate,
+                name: '',
             });
+
+            if (existingList) {
+                return res.status(200).json({
+                    code: '00098',
+                    message: 'Danh sách đã tồn tại.',
+                    data: existingList,
+                });
+            }
         }
 
         const shoppingList = await ShoppingList.create({
             group: req.user.group,
+            name: name || '',
             date: listDate,
             createdBy: req.user._id,
         });
@@ -268,11 +272,13 @@ exports.updateTask = async (req, res) => {
 
         // Update fields
         if (newFoodName) {
-            const food = await Food.findOne({ name: newFoodName, group: req.user.group });
+            // Find or create food
+            let food = await Food.findOne({ name: newFoodName, group: req.user.group });
             if (!food) {
-                return res.status(404).json({
-                    code: '00308',
-                    message: 'Không tìm thấy nhiệm vụ với tên đã cung cấp.',
+                // Auto-create food if not exists
+                food = await Food.create({
+                    name: newFoodName,
+                    group: req.user.group,
                 });
             }
 

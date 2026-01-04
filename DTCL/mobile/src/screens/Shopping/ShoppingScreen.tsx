@@ -9,6 +9,8 @@ import {
     Modal,
     TextInput,
     ScrollView,
+    Alert,
+    Platform,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { shoppingApi, groupApi } from '../../services/api';
@@ -31,6 +33,7 @@ interface ShoppingTask {
 
 interface ShoppingList {
     _id: string;
+    name?: string;
     date: string;
     tasks?: ShoppingTask[];
 }
@@ -47,6 +50,8 @@ const ShoppingScreen: React.FC = () => {
     const [selectedMember, setSelectedMember] = useState<string>('');
     const [editingTask, setEditingTask] = useState<ShoppingTask | null>(null);
     const [price, setPrice] = useState('');
+    const [listModalVisible, setListModalVisible] = useState(false);
+    const [newListName, setNewListName] = useState('');
 
     useEffect(() => {
         loadLists();
@@ -92,7 +97,9 @@ const ShoppingScreen: React.FC = () => {
 
     const handleCreateList = async () => {
         try {
-            await shoppingApi.createList();
+            await shoppingApi.createList(newListName ? { name: newListName } : undefined);
+            setListModalVisible(false);
+            setNewListName('');
             loadLists();
             Toast.show({
                 type: 'success',
@@ -145,6 +152,7 @@ const ShoppingScreen: React.FC = () => {
             if (editingTask) {
                 await shoppingApi.updateTask({
                     taskId: editingTask._id,
+                    newFoodName: foodName.trim(),
                     newQuantity: parseInt(quantity) || 1,
                     newPrice: price ? parseFloat(price) : undefined,
                 });
@@ -199,14 +207,40 @@ const ShoppingScreen: React.FC = () => {
         return date.toLocaleDateString('vi-VN', { weekday: 'short', day: 'numeric', month: 'numeric' });
     };
 
+    const handleDeleteTask = async (task: ShoppingTask) => {
+        const doDelete = async () => {
+            try {
+                await shoppingApi.deleteTask(task._id);
+                if (selectedList) {
+                    loadTasks(selectedList._id);
+                }
+                Toast.show({ type: 'success', text1: 'Đã xóa!' });
+            } catch (error: any) {
+                Toast.show({ type: 'error', text1: 'Lỗi', text2: error.response?.data?.message });
+            }
+        };
+
+        if (Platform.OS === 'web') {
+            if (window.confirm(`Xóa "${task.food.name}"?`)) doDelete();
+        } else {
+            Alert.alert('Xóa món', `Bạn có chắc muốn xóa "${task.food.name}"?`, [
+                { text: 'Hủy', style: 'cancel' },
+                { text: 'Xóa', style: 'destructive', onPress: doDelete },
+            ]);
+        }
+    };
+
     const renderListItem = ({ item }: { item: ShoppingList }) => (
         <TouchableOpacity
             style={[styles.listCard, selectedList?._id === item._id && styles.listCardActive]}
             onPress={() => handleSelectList(item)}
         >
-            <Text style={[styles.listDate, selectedList?._id === item._id && styles.listDateActive]}>
-                {formatDate(item.date)}
+            <Text style={[styles.listName, selectedList?._id === item._id && styles.listDateActive]}>
+                {item.name || formatDate(item.date)}
             </Text>
+            {item.name ? (
+                <Text style={styles.listDateSmall}>{formatDate(item.date)}</Text>
+            ) : null}
         </TouchableOpacity>
     );
 
@@ -234,7 +268,12 @@ const ShoppingScreen: React.FC = () => {
                     </View>
                 )}
             </View>
-            <Text style={styles.editHint}>✏️</Text>
+            <TouchableOpacity onPress={() => openEditModal(item)} style={styles.editTaskBtn}>
+                <Text style={styles.editTaskIcon}>✏️</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleDeleteTask(item)} style={styles.deleteTaskBtn}>
+                <Text style={styles.deleteTaskIcon}>🗑️</Text>
+            </TouchableOpacity>
         </TouchableOpacity>
     );
 
@@ -255,7 +294,7 @@ const ShoppingScreen: React.FC = () => {
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.listsTabs}
                     ListHeaderComponent={
-                        <TouchableOpacity style={styles.addListBtn} onPress={handleCreateList}>
+                        <TouchableOpacity style={styles.addListBtn} onPress={() => setListModalVisible(true)}>
                             <Text style={styles.addListText}>+ Mới</Text>
                         </TouchableOpacity>
                     }
@@ -359,6 +398,36 @@ const ShoppingScreen: React.FC = () => {
                     </View>
                 </View>
             </Modal>
+
+            {/* Create List Modal */}
+            <Modal visible={listModalVisible} transparent animationType="slide">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Tạo danh sách mới</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Tên danh sách (VD: Mua sắm cuối tuần)"
+                            value={newListName}
+                            onChangeText={setNewListName}
+                        />
+                        <Text style={styles.inputHint}>Để trống sẽ dùng ngày hiện tại</Text>
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                style={[styles.modalBtn, styles.cancelBtn]}
+                                onPress={() => {
+                                    setListModalVisible(false);
+                                    setNewListName('');
+                                }}
+                            >
+                                <Text style={styles.cancelText}>Hủy</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.modalBtn, styles.addBtn]} onPress={handleCreateList}>
+                                <Text style={styles.addBtnText}>Tạo</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
@@ -419,6 +488,16 @@ const styles = StyleSheet.create({
     listDate: {
         color: '#2d3436',
         fontWeight: '500',
+    },
+    listName: {
+        color: '#2d3436',
+        fontWeight: '600',
+        fontSize: 14,
+    },
+    listDateSmall: {
+        color: '#636e72',
+        fontSize: 10,
+        marginTop: 2,
     },
     listDateActive: {
         color: '#fff',
@@ -507,6 +586,24 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#b2bec3',
         marginTop: 8,
+    },
+    inputHint: {
+        fontSize: 12,
+        color: '#b2bec3',
+        marginTop: 4,
+        marginBottom: 12,
+    },
+    editTaskBtn: {
+        padding: 8,
+    },
+    editTaskIcon: {
+        fontSize: 18,
+    },
+    deleteTaskBtn: {
+        padding: 8,
+    },
+    deleteTaskIcon: {
+        fontSize: 18,
     },
     fab: {
         position: 'absolute',

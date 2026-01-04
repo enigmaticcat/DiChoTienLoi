@@ -47,12 +47,13 @@ exports.createRecipe = async (req, res) => {
             });
         }
 
-        // Find food
-        const food = await Food.findOne({ name: foodName, group: req.user.group });
+        // Find or create food
+        let food = await Food.findOne({ name: foodName, group: req.user.group });
         if (!food) {
-            return res.status(404).json({
-                code: '00354',
-                message: 'Không tìm thấy thực phẩm với tên đã cung cấp.',
+            // Auto-create food if not exists
+            food = await Food.create({
+                name: foodName,
+                group: req.user.group,
             });
         }
 
@@ -155,11 +156,12 @@ exports.updateRecipe = async (req, res) => {
 
         // Update fields
         if (newFoodName) {
-            const food = await Food.findOne({ name: newFoodName, group: req.user.group });
+            let food = await Food.findOne({ name: newFoodName, group: req.user.group });
             if (!food) {
-                return res.status(404).json({
-                    code: '00367',
-                    message: 'Tên thực phẩm mới không tồn tại.',
+                // Auto-create food if not exists
+                food = await Food.create({
+                    name: newFoodName,
+                    group: req.user.group,
                 });
             }
             recipe.food = food._id;

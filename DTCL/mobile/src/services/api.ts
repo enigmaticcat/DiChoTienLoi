@@ -116,7 +116,7 @@ export const fridgeApi = {
 // Shopping APIs
 export const shoppingApi = {
     getLists: () => api.get('/shopping/list'),
-    createList: (date?: string) => api.post('/shopping/list', date ? { date } : {}),
+    createList: (data?: { date?: string; name?: string }) => api.post('/shopping/list', data || {}),
     deleteList: (listId: string) => api.delete('/shopping/list', { data: { listId } }),
 
     getTasks: (listId: string) => api.get(`/shopping/task/${listId}`),

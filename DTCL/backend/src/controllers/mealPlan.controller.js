@@ -170,11 +170,13 @@ exports.updateMealPlan = async (req, res) => {
 
         // Update fields
         if (newFoodName) {
-            const food = await Food.findOne({ name: newFoodName, group: req.user.group });
+            // Find or create food
+            let food = await Food.findOne({ name: newFoodName, group: req.user.group });
             if (!food) {
-                return res.status(404).json({
-                    code: '00344',
-                    message: 'Tên thực phẩm mới không tồn tại.',
+                // Auto-create food if not exists
+                food = await Food.create({
+                    name: newFoodName,
+                    group: req.user.group,
                 });
             }
             mealPlan.food = food._id;
