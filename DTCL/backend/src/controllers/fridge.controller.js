@@ -6,7 +6,7 @@ const Food = require('../models/Food');
 // @access  Private (requires group)
 exports.createFridgeItem = async (req, res) => {
     try {
-        const { foodName, quantity, useWithin, note, location } = req.body;
+        const { foodName, quantity, useWithin, note, location, category, unit } = req.body;
 
         // Validate required fields
         if (!foodName) {
@@ -40,12 +40,42 @@ exports.createFridgeItem = async (req, res) => {
 
         // Find or create food
         let food = await Food.findOne({ name: foodName, group: req.user.group });
+
+        // Lookup category ObjectId if category name provided
+        let categoryId = null;
+        if (category) {
+            const Category = require('../models/Category');
+            const categoryDoc = await Category.findOne({ name: category });
+            if (categoryDoc) {
+                categoryId = categoryDoc._id;
+            }
+        }
+
+        // Lookup unit ObjectId if unit name provided
+        let unitId = null;
+        if (unit) {
+            const Unit = require('../models/Unit');
+            const unitDoc = await Unit.findOne({ name: unit });
+            if (unitDoc) {
+                unitId = unitDoc._id;
+            }
+        }
+
         if (!food) {
             // Auto-create food if not exists
-            food = await Food.create({
+            // Only pass categoryId/unitId if they are valid ObjectIds (not strings)
+            const foodData = {
                 name: foodName,
                 group: req.user.group,
-            });
+            };
+            if (categoryId) foodData.category = categoryId;
+            if (unitId) foodData.unit = unitId;
+
+            food = await Food.create(foodData);
+        } else if (categoryId && !food.category) {
+            // Update category if food exists but has no category
+            food.category = categoryId;
+            await food.save();
         }
 
         // Check if fridge item already exists - if so, update quantity
