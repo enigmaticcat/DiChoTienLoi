@@ -768,12 +768,14 @@ const styles = StyleSheet.create({
     },
     filterScrollContainer: {
         backgroundColor: '#fff',
+        maxHeight: 50,
+        paddingBottom: 12,
     },
     filterContainer: {
         flexDirection: 'row',
         paddingHorizontal: 16,
-        paddingBottom: 12,
         gap: 8,
+        alignItems: 'center',
     },
     filterChip: {
         paddingHorizontal: 14,
